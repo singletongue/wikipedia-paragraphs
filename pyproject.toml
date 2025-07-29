@@ -5,13 +5,13 @@ description = "Wikipedia paragraphs for natural language processing"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "beautifulsoup4>=4.12.3",
-    "datasets>=3.2.0",
+    "beautifulsoup4>=4.13.4",
+    "datasets>=4.0.0",
     "grequests>=0.7.0",
     "logzero>=1.7.0",
-    "lxml>=5.3.0",
-    "mwparserfromhell>=0.6.6",
-    "requests>=2.32.3",
+    "lxml>=6.0.0",
+    "mwparserfromhell>=0.7.2",
+    "requests>=2.32.4",
     "tqdm>=4.67.1",
 ]
 
