@@ -140,12 +140,17 @@ def generate_paragraphs_from_html(
     body_tag = soup.html.body
 
     for section_tag in body_tag.find_all("section"):
-        # https://github.com/wikimedia/mediawiki-services-mobileapps/blob/13331c8da18f97a410d0f114ae8e452bde95b045/lib/mobile/MobileHTML.js#L406
-        if any(
-            not references_tag.has_attr("data-mw-group")
-            for references_tag in section_tag.find_all(class_="mw-references")
-        ):
-            break
+        for table_tag in section_tag.find_all("table"):
+            table_tag.decompose()
+
+        for div_tag in section_tag.find_all("div", recursive=False):
+            if "columns-list__wrapper" in div_tag.get("class", []):
+                continue
+
+            div_tag.decompose()
+
+        for math_tag in section_tag.find_all("math"):
+            math_tag.decompose()
 
         for ref_tag in section_tag.find_all(class_="mw-ref"):
             ref_tag.decompose()
@@ -153,17 +158,12 @@ def generate_paragraphs_from_html(
         for cite_backlink_tag in section_tag.find_all(class_="mw-cite-backlink"):
             cite_backlink_tag.decompose()
 
-        for table_tag in section_tag.find_all("table"):
-            table_tag.decompose()
-
-        for div_tag in section_tag.find_all("div", recursive=False):
-            if any(class_name.endswith("__wrapper") for class_name in div_tag.get("class", [])):
-                if "columns-list__wrapper" not in div_tag["class"]:
-                    logger.debug("%s %s", title, div_tag["class"])
-
-                continue
-
-            div_tag.decompose()
+        # https://github.com/wikimedia/mediawiki-services-mobileapps/blob/13331c8da18f97a410d0f114ae8e452bde95b045/lib/mobile/MobileHTML.js#L406
+        if any(
+            not references_tag.has_attr("data-mw-group")
+            for references_tag in section_tag.find_all("ol", class_="mw-references")
+        ):
+            break
 
         if section_tag.h2 is not None:
             section_title = section_tag.h2.text.strip()
