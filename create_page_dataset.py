@@ -34,7 +34,7 @@ from common import (
 )
 
 
-def fetch_category_prefixes(lang: str) -> list[str]:
+def fetch_category_prefixes(lang: str, user_agent: str) -> list[str]:
     url = f"https://{lang}.wikipedia.org/w/api.php"
     params = {
         "action": "query",
@@ -43,7 +43,9 @@ def fetch_category_prefixes(lang: str) -> list[str]:
         "formatversion": 2,
         "format": "json",
     }
-    response = requests.get(url, params)
+    headers = {"User-Agent": user_agent}
+
+    response = requests.get(url, params=params, headers=headers)
     response.raise_for_status()
     response_data = response.json()
 
@@ -297,6 +299,7 @@ def main():
     parser.add_argument("--cirrussearch_files", nargs="+", type=str, required=True)
     parser.add_argument("--output_file", type=str, required=True)
     parser.add_argument("--lang", type=str, required=True)
+    parser.add_argument("--user_agent", type=str, required=True)
     parser.add_argument("--num_processes", type=int)
     parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
@@ -307,7 +310,7 @@ def main():
         raise FileExistsError(args.output_file)
 
     logger.info("Fetching category prefixes for lang %s", args.lang)
-    category_prefixes = fetch_category_prefixes(args.lang)
+    category_prefixes = fetch_category_prefixes(args.lang, args.user_agent)
     logger.debug("Category prefixes: %s", category_prefixes)
 
     logger.info("Extracting redirects from Cirrussearch dump files")
