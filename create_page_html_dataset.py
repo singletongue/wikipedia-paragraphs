@@ -21,7 +21,7 @@ from typing import Any
 from urllib.parse import quote
 
 import grequests
-from logzero import logger
+from loguru import logger
 from tqdm import tqdm
 
 from common import PAGE_TYPE_CATEGORY, PAGE_TYPE_TEMPLATE
@@ -119,13 +119,13 @@ def create_page_html_dataset_from_enterprise_html_files(
 
             if (lang, page_id, revision_id) not in remaining_page_info:
                 logger.debug(
-                    "Duplicated item: lang=%s, page_id=%d, revision_id=%d title=%s", lang, page_id, revision_id, title
+                    "Duplicated item: lang={}, page_id={}, revision_id={}, title={}", lang, page_id, revision_id, title
                 )
                 continue
 
             if html == "":
                 logger.debug(
-                    "HTML is empty: lang=%s, page_id=%d, revision_id=%d title=%s", lang, page_id, revision_id, title
+                    "HTML is empty: lang={}, page_id={}, revision_id={}, title={}", lang, page_id, revision_id, title
                 )
                 continue
 
@@ -209,7 +209,7 @@ def create_page_html_dataset_with_get_page_html_api(
 
                     if response is None:
                         logger.debug(
-                            "GET request failed: lang=%s, page_id=%d, revision_id=%d title=%s",
+                            "GET request failed: lang={}, page_id={}, revision_id={}, title={}",
                             lang,
                             page_id,
                             revision_id,
@@ -220,7 +220,7 @@ def create_page_html_dataset_with_get_page_html_api(
                     html = response.text.strip()
                     if html == "":
                         logger.debug(
-                            "HTML is empty: lang=%s, page_id=%d, revision_id=%d title=%s",
+                            "HTML is empty: lang={}, page_id={}, revision_id={}, title={}",
                             lang,
                             page_id,
                             revision_id,
@@ -313,7 +313,7 @@ def create_page_html_dataset_with_transform_wikitext_to_html_api(
 
                     if response is None:
                         logger.debug(
-                            "POST request failed: lang=%s, page_id=%d, revision_id=%d title=%s",
+                            "POST request failed: lang={}, page_id={}, revision_id={}, title={}",
                             lang,
                             page_id,
                             revision_id,
@@ -324,7 +324,7 @@ def create_page_html_dataset_with_transform_wikitext_to_html_api(
                     html = response.text.strip()
                     if html == "":
                         logger.debug(
-                            "HTML is empty: lang=%s, page_id=%d, revision_id=%d title=%s",
+                            "HTML is empty: lang={}, page_id={}, revision_id={}, title={}",
                             lang,
                             page_id,
                             revision_id,
@@ -378,10 +378,7 @@ def main():
     parser.add_argument("--timeout", type=int, default=60)
     parser.add_argument("--max_retries", type=int, default=5)
     parser.add_argument("--page_dataset_ids", nargs="+", type=str)
-    parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
-
-    logger.setLevel("DEBUG" if args.debug else "INFO")
 
     if Path(args.output_file).exists():
         raise FileExistsError(args.output_file)
@@ -407,14 +404,14 @@ def main():
         num_examples, page_info = create_page_html_dataset_from_enterprise_html_files(
             args.enterprise_html_files, page_info, args.output_file
         )
-        logger.debug("Number of generated examples: %d", num_examples)
-        logger.debug("Number of remaining examples: %d", len(page_info))
+        logger.debug("Number of generated examples: {}", num_examples)
+        logger.debug("Number of remaining examples: {}", len(page_info))
         total_num_examples += num_examples
 
     if len(page_info) > 0 and args.get_page_html:
         for i in range(args.max_retries):
             logger.info(
-                "Generating page HTML examples using Wikimedia REST API to get page HTMLs (%d/%d iteration)",
+                "Generating page HTML examples using Wikimedia REST API to get page HTMLs ({}/{} iteration)",
                 i + 1,
                 args.max_retries,
             )
@@ -426,8 +423,8 @@ def main():
                 request_batch_size=args.get_request_batch_size,
                 timeout=args.timeout,
             )
-            logger.debug("Number of generated examples: %d", num_examples)
-            logger.debug("Number of remaining examples: %d", len(page_info))
+            logger.debug("Number of generated examples: {}", num_examples)
+            logger.debug("Number of remaining examples: {}", len(page_info))
             total_num_examples += num_examples
 
             if len(page_info) == 0:
@@ -436,7 +433,7 @@ def main():
     if len(page_info) > 0 and args.get_page_mobile_html:
         for i in range(args.max_retries):
             logger.info(
-                "Generating page HTML examples using Wikimedia REST API to get mobile page HTMLs (%d/%d iteration)",
+                "Generating page HTML examples using Wikimedia REST API to get mobile page HTMLs ({}/{} iteration)",
                 i + 1,
                 args.max_retries,
             )
@@ -449,8 +446,8 @@ def main():
                 request_batch_size=args.get_request_batch_size,
                 timeout=args.timeout,
             )
-            logger.debug("Number of generated examples: %d", num_examples)
-            logger.debug("Number of remaining examples: %d", len(page_info))
+            logger.debug("Number of generated examples: {}", num_examples)
+            logger.debug("Number of remaining examples: {}", len(page_info))
             total_num_examples += num_examples
 
             if len(page_info) == 0:
@@ -470,7 +467,7 @@ def main():
             for i in range(args.max_retries):
                 logger.info(
                     "Generating page HTML examples using Wikimedia REST API to transform wikitexts to HTMLs "
-                    "(%d/%d iteration)",
+                    "({}/{} iteration)",
                     i + 1,
                     args.max_retries,
                 )
@@ -482,8 +479,8 @@ def main():
                     request_batch_size=args.transform_request_batch_size,
                     timeout=args.timeout,
                 )
-                logger.debug("Number of generated examples: %d", num_examples)
-                logger.debug("Number of remaining examples: %d", len(page_info))
+                logger.debug("Number of generated examples: {}", num_examples)
+                logger.debug("Number of remaining examples: {}", len(page_info))
                 total_num_examples += num_examples
 
                 if len(page_info) == 0:
@@ -493,7 +490,7 @@ def main():
             for i in range(args.max_retries):
                 logger.info(
                     "Generating page HTML examples using Wikimedia REST API to transform wikitexts to mobile HTMLs "
-                    "(%d/%d iteration)",
+                    "({}/{} iteration)",
                     i + 1,
                     args.max_retries,
                 )
@@ -506,8 +503,8 @@ def main():
                     request_batch_size=args.transform_request_batch_size,
                     timeout=args.timeout,
                 )
-                logger.debug("Number of generated examples: %d", num_examples)
-                logger.debug("Number of remaining examples: %d", len(page_info))
+                logger.debug("Number of generated examples: {}", num_examples)
+                logger.debug("Number of remaining examples: {}", len(page_info))
                 total_num_examples += num_examples
 
                 if len(page_info) == 0:
@@ -517,7 +514,7 @@ def main():
             for i in range(args.max_retries):
                 logger.info(
                     "Generating page HTML examples using Wikimedia REST API to transform wikitexts to mobile HTMLs "
-                    'using the substituted query title "%s" (%d/%d iteration)',
+                    'using the substituted query title "{}" ({}/{} iteration)',
                     args.subst_query_title,
                     i + 1,
                     args.max_retries,
@@ -532,8 +529,8 @@ def main():
                     request_batch_size=args.transform_request_batch_size,
                     timeout=args.timeout,
                 )
-                logger.debug("Number of generated examples: %d", num_examples)
-                logger.debug("Number of remaining examples: %d", len(page_info))
+                logger.debug("Number of generated examples: {}", num_examples)
+                logger.debug("Number of remaining examples: {}", len(page_info))
                 total_num_examples += num_examples
 
                 if len(page_info) == 0:
@@ -541,14 +538,14 @@ def main():
 
     for (lang, page_id, revision_id), (_, title) in page_info.items():
         logger.warning(
-            "Failed to obtain page HTML: lang=%s, page_id=%d, revision_id=%d title=%s",
+            "Failed to obtain page HTML: lang={}, page_id={}, revision_id={} title={}",
             lang,
             page_id,
             revision_id,
             title,
         )
 
-    logger.info("Finished creating dataset of %d examples", total_num_examples)
+    logger.info("Finished creating dataset of {} examples", total_num_examples)
 
 
 if __name__ == "__main__":

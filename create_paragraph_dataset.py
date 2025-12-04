@@ -21,7 +21,7 @@ from multiprocessing.pool import Pool
 from pathlib import Path
 
 from bs4 import BeautifulSoup, Comment, NavigableString, Tag
-from logzero import logger
+from loguru import logger
 from tqdm import tqdm
 
 from common import PAGE_TYPE_ARTICLE, normalize_title
@@ -336,10 +336,7 @@ def main():
     parser.add_argument("--add_pseudo_self_wikilinks", action="store_true")
     parser.add_argument("--article_redirects_file", type=str)
     parser.add_argument("--num_processes", type=int)
-    parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
-
-    logger.setLevel("DEBUG" if args.debug else "INFO")
 
     if Path(args.output_dir).exists():
         raise FileExistsError(args.output_dir)
@@ -366,7 +363,7 @@ def main():
         add_pseudo_self_wikilinks=args.add_pseudo_self_wikilinks,
         num_processes=args.num_processes,
     )
-    logger.info("Finished creating dataset of %d examples", num_examples)
+    logger.info("Finished creating dataset of {} examples", num_examples)
 
 
 if __name__ == "__main__":

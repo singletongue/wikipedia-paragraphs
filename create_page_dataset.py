@@ -22,7 +22,7 @@ from typing import Any
 
 import mwparserfromhell
 import requests
-from logzero import logger
+from loguru import logger
 from tqdm import tqdm
 
 from common import (
@@ -117,7 +117,7 @@ def normalize_redirects(redirect_candidates: dict[tuple[int, str], list[str]]) -
         if len(target_titles) > 1:
             if source_title in target_titles:
                 logger.debug(
-                    "Normalizing duplicated redirect (ns=%d): (%s -> %s) => (%s -> %s)",
+                    "Normalizing duplicated redirect (ns={}): ({} -> {}) => ({} -> {})",
                     namespace,
                     source_title,
                     target_titles,
@@ -127,7 +127,7 @@ def normalize_redirects(redirect_candidates: dict[tuple[int, str], list[str]]) -
                 redirects[(namespace, source_title)] = source_title
             else:
                 logger.debug(
-                    "Dropping duplicated redirect (ns=%d): (%s -> %s) => null", namespace, source_title, target_titles
+                    "Dropping duplicated redirect (ns={}): ({} -> {}) => null", namespace, source_title, target_titles
                 )
 
         elif len(target_titles) == 1:
@@ -301,17 +301,14 @@ def main():
     parser.add_argument("--lang", type=str, required=True)
     parser.add_argument("--user_agent", type=str, required=True)
     parser.add_argument("--num_processes", type=int)
-    parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
-
-    logger.setLevel("DEBUG" if args.debug else "INFO")
 
     if Path(args.output_file).exists():
         raise FileExistsError(args.output_file)
 
-    logger.info("Fetching category prefixes for lang %s", args.lang)
+    logger.info("Fetching category prefixes for lang {}", args.lang)
     category_prefixes = fetch_category_prefixes(args.lang, args.user_agent)
-    logger.debug("Category prefixes: %s", category_prefixes)
+    logger.debug("Category prefixes: {}", category_prefixes)
 
     logger.info("Extracting redirects from Cirrussearch dump files")
     redirect_candidates = extract_redirect_candidates(args.cirrussearch_files, args.lang)
@@ -336,7 +333,7 @@ def main():
     num_examples = create_page_dataset(
         args.cirrussearch_files, args.output_file, args.lang, linked_pages, num_inlinks, inverse_redirects
     )
-    logger.info("Finished creating page dataset of %d examples", num_examples)
+    logger.info("Finished creating page dataset of {} examples", num_examples)
 
 
 if __name__ == "__main__":
