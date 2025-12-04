@@ -107,6 +107,9 @@ def extract_texts_and_links_from_tag(
                 if text != "" and not noprint:
                     extracted_texts_and_links.append((text, f"{lang}:{title}"))
                     add_pseudo_self_wikilinks = False
+            elif child.name in ("rp", "rt"):
+                if "font-size:0px" not in child.get("style", ""):
+                    extracted_texts_and_links.append((text, None))
             else:
                 child_noprint = noprint or "noprint" in child.get("class", [])
                 extracted_texts_and_links = extract_texts_and_links_from_tag(
