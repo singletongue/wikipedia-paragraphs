@@ -14,7 +14,7 @@
 import argparse
 
 from datasets import Dataset
-from logzero import logger
+from loguru import logger
 
 
 def main():
@@ -23,16 +23,13 @@ def main():
     parser.add_argument("--dataset_repo_id", type=str, required=True)
     parser.add_argument("--dataset_config_name", type=str, required=True)
     parser.add_argument("--private", action="store_true")
-    parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
-
-    logger.setLevel("DEBUG" if args.debug else "INFO")
 
     logger.info("Loading dataset")
     dataset = Dataset.load_from_disk(args.dataset_dir)
-    logger.debug("Number of examples: %d", len(dataset))
+    logger.debug("Number of examples: {}", len(dataset))
 
-    logger.info("Pushing dataset to %s (config=%s)", args.dataset_repo_id, args.dataset_config_name)
+    logger.info("Pushing dataset to {} (config={})", args.dataset_repo_id, args.dataset_config_name)
     dataset.push_to_hub(args.dataset_repo_id, config_name=args.dataset_config_name, private=args.private)
     logger.info("Finished pushing dataset")
 

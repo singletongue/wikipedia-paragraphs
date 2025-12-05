@@ -15,7 +15,7 @@ import argparse
 from pathlib import Path
 
 from datasets import Features, Value, concatenate_datasets, load_dataset
-from logzero import logger
+from loguru import logger
 
 
 PAGE_DATASET_FEATURES = Features(
@@ -69,10 +69,7 @@ def main():
     parser.add_argument("--output_dir", type=str, required=True)
     parser.add_argument("--cache_dir", type=str)
     parser.add_argument("--num_processes", type=int)
-    parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
-
-    logger.setLevel("DEBUG" if args.debug else "INFO")
 
     if Path(args.output_dir).exists():
         raise FileExistsError(args.output_dir)
@@ -86,7 +83,7 @@ def main():
         features=PAGE_DATASET_FEATURES,
     )
     num_page_dataset_examples = len(page_dataset)
-    logger.debug("Number of examples in page dataset: %d", num_page_dataset_examples)
+    logger.debug("Number of examples in page dataset: {}", num_page_dataset_examples)
 
     logger.info("Loading paragraph dataset")
     paragraph_dataset = load_dataset(
@@ -98,7 +95,7 @@ def main():
         num_proc=args.num_processes,
     )
     num_paragraph_dataset_examples = len(paragraph_dataset)
-    logger.debug("Number of examples in paragraph dataset: %d", num_paragraph_dataset_examples)
+    logger.debug("Number of examples in paragraph dataset: {}", num_paragraph_dataset_examples)
 
     if num_page_dataset_examples != num_paragraph_dataset_examples:
         raise RuntimeError(
