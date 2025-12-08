@@ -49,8 +49,7 @@ uv run create_page_dataset.py \
 --output_file work/${WIKILANG}wiki-20250901-pages.jsonl.gz \
 --lang ${WIKILANG} \
 --user_agent <your email address> \
---num_processes 16 \
---debug; \
+--num_processes 16; \
 done
 ```
 
@@ -73,8 +72,7 @@ uv run create_page_html_dataset.py \
 --transform_wikitext_to_html \
 --user_agent <your email address> \
 --get_request_batch_size 50 \
---transform_request_batch_size 50 \
---debug
+--transform_request_batch_size 50
 
 # For the other 10 languages
 for WIKILANG in ar de es fr it ja ko pt ru zh; do \
@@ -89,8 +87,7 @@ uv run create_page_html_dataset.py \
 --transform_wikitext_to_html \
 --user_agent <your email address> \
 --get_request_batch_size 50 \
---transform_request_batch_size 50 \
---debug; \
+--transform_request_batch_size 50; \
 done
 ```
 
@@ -111,8 +108,7 @@ uv run create_page_html_dataset.py \
 --user_agent <your email address> \
 --subst_query_title メインページ \
 --get_request_batch_size 50 \
---transform_request_batch_size 50 \
---debug; \
+--transform_request_batch_size 50; \
 done
 ``` -->
 
@@ -126,8 +122,7 @@ uv run create_paragraph_dataset.py \
 --output_dir work/${WIKILANG}wiki-20250901-paragraphs \
 --paragraph_tags p li dt dd blockquote \
 --article_redirects_file work/article-redirects-20250901.pkl \
---num_processes 4 \
---debug; \
+--num_processes 4; \
 done
 ```
 
@@ -140,8 +135,7 @@ uv run create_paragraph_dataset.py \
 --paragraph_tags p li dt dd blockquote \
 --add_pseudo_self_wikilinks \
 --article_redirects_file work/article-redirects-20250901.pkl \
---num_processes 4 \
---debug; \
+--num_processes 4; \
 done
 ``` -->
 
@@ -155,7 +149,6 @@ uv run merge_page_paragraph_datasets.py \
 --output_dir outputs/${WIKILANG}wiki-20250901 \
 --cache_dir cache \
 --num_processes 4 \
---debug \
 && rm -r cache; \
 done
 ```
@@ -168,10 +161,9 @@ done
 for WIKILANG in ar de en es fr it ja ko pt ru zh; do \
 uv run push_to_hub.py \
 --dataset_dir outputs/20250901/${WIKILANG}wiki-20250901 \
---dataset_repo_id <your dataset repo id (e.g., singletongue/wikipedia-paragraphs)> \
---dataset_config_name ${WIKILANG}wiki-20250901 \
---private \
---debug; \
+--repo_id <your dataset repo id (e.g., singletongue/wikipedia-paragraphs)> \
+--config_name ${WIKILANG}wiki-20250901 \
+--revisions v1.1.0 main; \
 done
 ```
 
