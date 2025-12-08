@@ -20,8 +20,9 @@ from loguru import logger
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset_dir", type=str, required=True)
-    parser.add_argument("--dataset_repo_id", type=str, required=True)
-    parser.add_argument("--dataset_config_name", type=str, required=True)
+    parser.add_argument("--repo_id", type=str, required=True)
+    parser.add_argument("--config_name", type=str, required=True)
+    parser.add_argument("--revisions", nargs="+", type=str, default=["main"])
     parser.add_argument("--private", action="store_true")
     args = parser.parse_args()
 
@@ -29,9 +30,10 @@ def main():
     dataset = Dataset.load_from_disk(args.dataset_dir)
     logger.debug("Number of examples: {}", len(dataset))
 
-    logger.info("Pushing dataset to {} (config={})", args.dataset_repo_id, args.dataset_config_name)
-    dataset.push_to_hub(args.dataset_repo_id, config_name=args.dataset_config_name, private=args.private)
-    logger.info("Finished pushing dataset")
+    for revision in args.revisions:
+        logger.info("Pushing dataset to {} (config={}, revision={})", args.repo_id, args.config_name, revision)
+        dataset.push_to_hub(args.repo_id, config_name=args.config_name, private=args.private, revision=revision)
+        logger.info("Finished pushing dataset")
 
 
 if __name__ == "__main__":
