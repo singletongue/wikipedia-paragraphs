@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import argparse
+import bz2
 import gzip
 import json
 from collections import Counter, defaultdict
@@ -32,6 +33,14 @@ from common import (
     get_page_type_from_namespace,
     normalize_title,
 )
+
+
+def open_text_by_compression(file_path: str):
+    if file_path.endswith(".gz"):
+        return gzip.open(file_path, "rt")
+    if file_path.endswith(".bz2"):
+        return bz2.open(file_path, "rt")
+    return open(file_path)
 
 
 def fetch_category_prefixes(lang: str, user_agent: str) -> list[str]:
@@ -71,7 +80,7 @@ def fetch_category_prefixes(lang: str, user_agent: str) -> list[str]:
 
 def generate_items_from_cirrussearch_files(cirrussearch_files: list[str], lang: str) -> Iterator[dict[str, Any]]:
     for cirrussearch_file in cirrussearch_files:
-        with gzip.open(cirrussearch_file, "rt") as f:
+        with open_text_by_compression(cirrussearch_file) as f:
             for line in f:
                 item = json.loads(line)
 
