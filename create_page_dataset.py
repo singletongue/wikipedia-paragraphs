@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import argparse
+import bz2
 import gzip
 import json
 from collections import Counter, defaultdict
@@ -69,24 +70,34 @@ def fetch_category_prefixes(lang: str, user_agent: str) -> list[str]:
     return category_prefixes
 
 
-def generate_items_from_cirrussearch_files(cirrussearch_files: list[str], lang: str) -> Iterator[dict[str, Any]]:
-    for cirrussearch_file in cirrussearch_files:
+def iter_cirrussearch_item(cirrussearch_file: str) -> Iterator[dict[str, Any]]:
+    if cirrussearch_file.endswith(".gz"):
         with gzip.open(cirrussearch_file, "rt") as f:
             for line in f:
-                item = json.loads(line)
+                yield json.loads(line)
+    elif cirrussearch_file.endswith(".bz2"):
+        with bz2.open(cirrussearch_file, "rt") as f:
+            for line in f:
+                yield json.loads(line)
+    else:
+        raise ValueError(f"Unsupported file format: {cirrussearch_file}")
 
-                if "index" in item:
-                    continue
-                if item["namespace"] not in (NAMESPACE_ARTICLE, NAMESPACE_CATEGORY, NAMESPACE_TEMPLATE):
-                    continue
-                if item["language"] != lang:
-                    # Most pages in the Norwegian Wikipedia (nowiki) has the "nb" lang code.
-                    if lang == "no" and item["language"] == "nb":
-                        pass
-                    else:
-                        continue
 
-                yield item
+def generate_items_from_cirrussearch_files(cirrussearch_files: list[str], lang: str) -> Iterator[dict[str, Any]]:
+    for cirrussearch_file in cirrussearch_files:
+        for item in iter_cirrussearch_item(cirrussearch_file):
+            if "index" in item:
+                continue
+            if item["namespace"] not in (NAMESPACE_ARTICLE, NAMESPACE_CATEGORY, NAMESPACE_TEMPLATE):
+                continue
+            if item["language"] != lang:
+                # Most pages in the Norwegian Wikipedia (nowiki) has the "nb" lang code.
+                if lang == "no" and item["language"] == "nb":
+                    pass
+                else:
+                    continue
+
+            yield item
 
 
 def extract_redirect_candidates(cirrussearch_files: list[str], lang: str) -> dict[tuple[int, str], list[str]]:
