@@ -9,7 +9,7 @@ For details about the dataset itself, including its specifications and usage exa
 
 ## Dataset creation process
 
-The following steps outline the procedure for creating the `**wiki-20251202-v1.1.0` configuration of the dataset, which is available on Hugging Face Hub.
+The following steps outline the procedure for creating the `**wiki-20260301-v1.2.0` configuration of the dataset, which is available on Hugging Face Hub.
 In this context, `**` represents the language codes for the 11 target languages: `ar`, `de`, `en`, `es`, `fr`, `it`, `ja`, `ko`, `pt`, `ru`, and `zh`.
 
 The process was run on a Linux machine with 128GB of RAM.
@@ -18,8 +18,8 @@ The process was run on a Linux machine with 128GB of RAM.
 
 For the 11 target languages, download the following dump files and save them to the `data/` directory:
 
-- [Wikipedia Cirrussearch dumps](https://dumps.wikimedia.org/other/cirrussearch/):
-  - Download the `**wiki-20251202-cirrussearch-content.json.gz` and `**wiki-20251202-cirrussearch-general.json.gz` files.
+- [Wikipedia Cirrussearch dumps](https://dumps.wikimedia.org/other/cirrus_search_index/):
+  - Download the `**wiki_content-20260301-*****.json.bz2` and `**wiki_general-20260301-*****.json.bz2` files.
 - [Wikimedia Enterprise API](https://enterprise.wikimedia.com/) (sign-up required):
   - Use the [Snapshot API](https://enterprise.wikimedia.com/docs/snapshot/) to download the `**wiki_namespace_0` snapshot (saved as `**wiki_namespace_0.tar.gz`).
 - [Wikimedia Enterprise HTML dumps](https://dumps.wikimedia.org/other/enterprise_html/runs/):
@@ -27,7 +27,7 @@ For the 11 target languages, download the following dump files and save them to 
 
 ### Set up virtual environment
 
-[uv](https://github.com/astral-sh/uv) (v0.8.15) is used.
+[uv](https://github.com/astral-sh/uv) (v0.10.8) is used.
 
 ```sh
 uv sync
@@ -35,17 +35,17 @@ uv sync
 
 ### Create page datasets
 
-**Important:**
-This step queries the [MediaWiki Action API](https://www.mediawiki.org/wiki/API:Action_API) to retrieve category aliases for each language's Wikipedia.
-Please be sure to consult the API's web page for its terms of use.
+> [!IMPORTANT]
+> This step queries the [MediaWiki Action API](https://www.mediawiki.org/wiki/API:Action_API) to retrieve category aliases for each language's Wikipedia.
+> Please be sure to consult the API's web page for its terms of use.
 
 ```sh
 for WIKILANG in ar de en es fr it ja ko pt ru zh; do \
 uv run create_page_dataset.py \
 --cirrussearch_files \
-  data/${WIKILANG}wiki-20251202-cirrussearch-content.json.gz \
-  data/${WIKILANG}wiki-20251202-cirrussearch-general.json.gz \
---output_file work/${WIKILANG}wiki-20251202-pages.jsonl.gz \
+  data/${WIKILANG}wiki_content-20260301-*.json.bz2 \
+  data/${WIKILANG}wiki_general-20260301-*.json.bz2 \
+--output_file work/${WIKILANG}wiki-20260301-pages.jsonl.gz \
 --lang ${WIKILANG} \
 --user_agent <your email address> \
 --num_processes 16; \
@@ -54,15 +54,15 @@ done
 
 ### Create page HTML datasets
 
-**Important:**
-This step queries the [Wikimedia REST API](https://www.mediawiki.org/wiki/Wikimedia_REST_API) to fetch article HTMLs missing from the dump files.
-Please be sure to consult the API's web page for its terms of use.
+> [!IMPORTANT]
+> This step queries the [Wikimedia REST API](https://www.mediawiki.org/wiki/Wikimedia_REST_API) to fetch article HTMLs missing from the dump files.
+> Please be sure to consult the API's web page for its terms of use.
 
 ```sh
 for WIKILANG in ar de en es fr it ja ko pt ru zh; do \
 uv run create_page_html_dataset.py \
---page_dataset_file work/${WIKILANG}wiki-20251202-pages.jsonl.gz \
---output_file work/${WIKILANG}wiki-20251202-page-htmls.jsonl.gz \
+--page_dataset_file work/${WIKILANG}wiki-20260301-pages.jsonl.gz \
+--output_file work/${WIKILANG}wiki-20260301-page-htmls.jsonl.gz \
 --enterprise_html_files \
   data/${WIKILANG}wiki_namespace_0.tar.gz \
   data/${WIKILANG}wiki-NS10-20250320-ENTERPRISE-HTML.json.tar.gz \
@@ -80,8 +80,8 @@ done
 ```sh
 for WIKILANG in ar de en es fr it ja ko pt ru zh; do \
 uv run create_page_html_dataset.py \
---page_dataset_file work/${WIKILANG}wiki-20251202-pages.jsonl.gz \
---output_file work/${WIKILANG}wiki-20251202-page-htmls.jsonl.gz \
+--page_dataset_file work/${WIKILANG}wiki-20260301-pages.jsonl.gz \
+--output_file work/${WIKILANG}wiki-20260301-page-htmls.jsonl.gz \
 --enterprise_html_files \
   data/${WIKILANG}wiki-NS0-20250320-ENTERPRISE-HTML.json.tar.gz \
   data/${WIKILANG}wiki-NS10-20250320-ENTERPRISE-HTML.json.tar.gz \
@@ -101,11 +101,11 @@ done
 ```sh
 for WIKILANG in ar de en es fr it ja ko pt ru zh; do \
 uv run create_paragraph_dataset.py \
---page_dataset_files work/*wiki-20251202-pages.jsonl.gz \
---page_html_dataset_files work/${WIKILANG}wiki-20251202-page-htmls.jsonl.gz \
---output_dir work/${WIKILANG}wiki-20251202-paragraphs \
+--page_dataset_files work/*wiki-20260301-pages.jsonl.gz \
+--page_html_dataset_files work/${WIKILANG}wiki-20260301-page-htmls.jsonl.gz \
+--output_dir work/${WIKILANG}wiki-20260301-paragraphs \
 --paragraph_tags p li dt dd blockquote \
---article_redirects_file work/article-redirects-20251202.pkl \
+--article_redirects_file work/article-redirects-20260301.pkl \
 --num_processes 4; \
 done
 ```
@@ -113,12 +113,12 @@ done
 <!-- ```sh
 for WIKILANG in ar de en es fr it ja ko pt ru zh; do \
 uv run create_paragraph_dataset.py \
---page_dataset_files work/*wiki-20251202-pages.jsonl.gz \
---page_html_dataset_files work/${WIKILANG}wiki-20251202-page-htmls.jsonl.gz \
---output_dir work/${WIKILANG}wiki-20251202-paragraphs \
+--page_dataset_files work/*wiki-20260301-pages.jsonl.gz \
+--page_html_dataset_files work/${WIKILANG}wiki-20260301-page-htmls.jsonl.gz \
+--output_dir work/${WIKILANG}wiki-20260301-paragraphs \
 --paragraph_tags p li dt dd blockquote \
 --add_pseudo_self_wikilinks \
---article_redirects_file work/article-redirects-20251202.pkl \
+--article_redirects_file work/article-redirects-20260301.pkl \
 --num_processes 4; \
 done
 ``` -->
@@ -128,25 +128,26 @@ done
 ```sh
 for WIKILANG in ar de en es fr it ja ko pt ru zh; do \
 uv run merge_page_paragraph_datasets.py \
---page_dataset_file work/${WIKILANG}wiki-20251202-pages.jsonl.gz \
---paragraph_dataset_dir work/${WIKILANG}wiki-20251202-paragraphs \
---output_dir outputs/${WIKILANG}wiki-20251202 \
+--page_dataset_file work/${WIKILANG}wiki-20260301-pages.jsonl.gz \
+--paragraph_dataset_dir work/${WIKILANG}wiki-20260301-paragraphs \
+--output_dir outputs/${WIKILANG}wiki-20260301 \
 --cache_dir cache \
 --num_processes 4 \
 && rm -r cache; \
 done
 ```
 
-**Note:** The data saved in the `cache/` directory is largest for English (`en`), requiring approximately 151GB of space.
+> [!NOTE]
+> For primary languages like `en`, the `cache/` directory can grow to hundreds of gigabytes in size.
 
 ### Push merged datasets to Hugging Face Hub
 
 ```sh
 for WIKILANG in ar de en es fr it ja ko pt ru zh; do \
 uv run push_to_hub.py \
---dataset_dir outputs/20251202/${WIKILANG}wiki-20251202 \
+--dataset_dir outputs/${WIKILANG}wiki-20260301 \
 --repo_id <your dataset repo id (e.g., singletongue/wikipedia-paragraphs)> \
---config_name ${WIKILANG}wiki-20251202-v1.1.0; \
+--config_name ${WIKILANG}wiki-20260301-v1.2.0; \
 done
 ```
 
