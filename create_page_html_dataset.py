@@ -17,6 +17,7 @@ import json
 import tarfile
 from collections.abc import Iterator
 from pathlib import Path
+from time import sleep
 from typing import Any
 from urllib.parse import quote
 
@@ -227,6 +228,16 @@ def create_page_html_dataset_with_get_page_html_api(
                             title,
                         )
                         continue
+                    if "bot-traffic@wikimedia.org" in html:
+                        logger.debug(
+                            "Possibly reached the API rate limit: lang={}, page_id={}, revision_id={}, title={}",
+                            lang,
+                            page_id,
+                            revision_id,
+                            title,
+                        )
+                        sleep(10)
+                        continue
 
                     output_example = {
                         "id": id_,
@@ -331,6 +342,16 @@ def create_page_html_dataset_with_transform_wikitext_to_html_api(
                             title,
                         )
                         continue
+                    if "bot-traffic@wikimedia.org" in html:
+                        logger.debug(
+                            "Possibly reached the API rate limit: lang={}, page_id={}, revision_id={}, title={}",
+                            lang,
+                            page_id,
+                            revision_id,
+                            title,
+                        )
+                        sleep(10)
+                        continue
 
                     if transform_to_mobile_html and subst_query_title is not None:
                         html = html.replace(subst_query_title, title)
@@ -376,7 +397,7 @@ def main():
     parser.add_argument("--get_request_batch_size", type=int, default=1)
     parser.add_argument("--transform_request_batch_size", type=int, default=1)
     parser.add_argument("--timeout", type=int, default=60)
-    parser.add_argument("--max_retries", type=int, default=5)
+    parser.add_argument("--max_retries", type=int, default=10)
     parser.add_argument("--page_dataset_ids", nargs="+", type=str)
     args = parser.parse_args()
 
@@ -410,6 +431,7 @@ def main():
 
     if len(page_info) > 0 and args.get_page_html:
         for i in range(args.max_retries):
+            sleep(10 * i)
             logger.info(
                 "Generating page HTML examples using Wikimedia REST API to get page HTMLs ({}/{} iteration)",
                 i + 1,
@@ -420,7 +442,7 @@ def main():
                 args.output_file,
                 args.user_agent,
                 get_latest_revision=args.get_latest_revision,
-                request_batch_size=args.get_request_batch_size,
+                request_batch_size=args.get_request_batch_size if i == 0 else 1,
                 timeout=args.timeout,
             )
             logger.debug("Number of generated examples: {}", num_examples)
@@ -432,6 +454,7 @@ def main():
 
     if len(page_info) > 0 and args.get_page_mobile_html:
         for i in range(args.max_retries):
+            sleep(10 * i)
             logger.info(
                 "Generating page HTML examples using Wikimedia REST API to get mobile page HTMLs ({}/{} iteration)",
                 i + 1,
@@ -443,7 +466,7 @@ def main():
                 args.user_agent,
                 get_mobile_html=True,
                 get_latest_revision=args.get_latest_revision,
-                request_batch_size=args.get_request_batch_size,
+                request_batch_size=args.get_request_batch_size if i == 0 else 1,
                 timeout=args.timeout,
             )
             logger.debug("Number of generated examples: {}", num_examples)
@@ -465,6 +488,7 @@ def main():
 
         if len(page_info) > 0 and args.transform_wikitext_to_html:
             for i in range(args.max_retries):
+                sleep(10 * i)
                 logger.info(
                     "Generating page HTML examples using Wikimedia REST API to transform wikitexts to HTMLs "
                     "({}/{} iteration)",
@@ -476,7 +500,7 @@ def main():
                     wikitexts,
                     args.output_file,
                     args.user_agent,
-                    request_batch_size=args.transform_request_batch_size,
+                    request_batch_size=args.transform_request_batch_size if i == 0 else 1,
                     timeout=args.timeout,
                 )
                 logger.debug("Number of generated examples: {}", num_examples)
@@ -488,6 +512,7 @@ def main():
 
         if len(page_info) > 0 and args.transform_wikitext_to_mobile_html:
             for i in range(args.max_retries):
+                sleep(10 * i)
                 logger.info(
                     "Generating page HTML examples using Wikimedia REST API to transform wikitexts to mobile HTMLs "
                     "({}/{} iteration)",
@@ -500,7 +525,7 @@ def main():
                     args.output_file,
                     args.user_agent,
                     transform_to_mobile_html=True,
-                    request_batch_size=args.transform_request_batch_size,
+                    request_batch_size=args.transform_request_batch_size if i == 0 else 1,
                     timeout=args.timeout,
                 )
                 logger.debug("Number of generated examples: {}", num_examples)
@@ -512,6 +537,7 @@ def main():
 
         if len(page_info) > 0 and args.transform_wikitext_to_mobile_html_subst_query_title:
             for i in range(args.max_retries):
+                sleep(10 * i)
                 logger.info(
                     "Generating page HTML examples using Wikimedia REST API to transform wikitexts to mobile HTMLs "
                     'using the substituted query title "{}" ({}/{} iteration)',
@@ -526,7 +552,7 @@ def main():
                     args.user_agent,
                     transform_to_mobile_html=True,
                     subst_query_title=args.subst_query_title,
-                    request_batch_size=args.transform_request_batch_size,
+                    request_batch_size=args.transform_request_batch_size if i == 0 else 1,
                     timeout=args.timeout,
                 )
                 logger.debug("Number of generated examples: {}", num_examples)
