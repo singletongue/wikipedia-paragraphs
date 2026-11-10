@@ -61,9 +61,8 @@ def fetch_category_prefixes(lang: str, user_agent: str) -> list[str]:
                 category_prefixes.append(namespace_item["name"])
 
     for alias_item in response_data["query"]["namespacealiases"]:
-        if alias_item["id"] == NAMESPACE_CATEGORY:
-            if alias_item["alias"] not in category_prefixes:
-                category_prefixes.append(alias_item["alias"])
+        if alias_item["id"] == NAMESPACE_CATEGORY and alias_item["alias"] not in category_prefixes:
+            category_prefixes.append(alias_item["alias"])
 
     category_prefixes = [f"{prefix}:" for prefix in category_prefixes]
 
@@ -90,35 +89,45 @@ def generate_items_from_cirrussearch_files(cirrussearch_files: list[str], lang: 
                 continue
             if item["namespace"] not in (NAMESPACE_ARTICLE, NAMESPACE_CATEGORY, NAMESPACE_TEMPLATE):
                 continue
-            if item["language"] != lang:
-                # Most pages in the Norwegian Wikipedia (nowiki) has the "nb" lang code.
-                if lang == "no" and item["language"] == "nb":
-                    pass
-                else:
-                    continue
 
             yield item
 
 
-def extract_redirect_candidates(cirrussearch_files: list[str], lang: str) -> dict[tuple[int, str], list[str]]:
+def extract_all_titles_and_redirect_candidates(
+    cirrussearch_files: list[str], lang: str
+) -> tuple[set[tuple[int, str]], dict[tuple[int, str], list[str]]]:
+    all_titles = set()  # set of (namespace, title)
     redirect_candidates = defaultdict(list)  # (namespace, source title) -> target titles
 
     for item in tqdm(generate_items_from_cirrussearch_files(cirrussearch_files, lang)):
         namespace = item["namespace"]
+        title = normalize_title(item["title"])
 
-        target_title = normalize_title(item["title"])
-        if (namespace, target_title) not in redirect_candidates:
-            redirect_candidates[(namespace, target_title)].append(target_title)
+        if "redirect_target" in item:
+            if item["redirect_target"]["interwiki"]:
+                logger.info(
+                    "interwiki in redirect is not empty (ns={}, title={}): target={}",
+                    namespace,
+                    title,
+                    item["redirect_target"]["title"],
+                )
 
-        for redirect_item in item["redirect"]:
-            if redirect_item["namespace"] != namespace:
-                continue
+            if item["redirect_target"]["namespace"] == namespace:
+                target_title = normalize_title(item["redirect_target"]["title"])
+                if target_title not in redirect_candidates[(namespace, title)]:
+                    redirect_candidates[(namespace, title)].append(target_title)
+        else:
+            all_titles.add((namespace, title))
+            if title not in redirect_candidates[(namespace, title)]:
+                redirect_candidates[(namespace, title)].append(title)
 
-            source_title = normalize_title(redirect_item["title"])
-            if (namespace, source_title) not in redirect_candidates:
-                redirect_candidates[(namespace, source_title)].append(target_title)
+    for namespace, source_title in list(redirect_candidates.keys()):
+        target_titles = redirect_candidates[(namespace, source_title)]
+        for target_title in list(target_titles):
+            if (namespace, target_title) not in all_titles:
+                redirect_candidates[(namespace, source_title)].remove(target_title)
 
-    return dict(redirect_candidates)
+    return all_titles, dict(redirect_candidates)
 
 
 def normalize_redirects(redirect_candidates: dict[tuple[int, str], list[str]]) -> dict[tuple[int, str], str]:
@@ -163,6 +172,9 @@ def _extract_linked_pages(
         if num_processes is not None and idx % num_processes != process_idx:
             continue
 
+        if "redirect_target" in item:
+            continue
+
         page_id = item["page_id"]
         wikicode = mwparserfromhell.parse(item["source_text"])
 
@@ -175,26 +187,23 @@ def _extract_linked_pages(
                 if wikilink_title[: len(category_prefix)].lower() == category_prefix.lower():
                     category = normalize_title(wikilink_title[len(category_prefix) :])
                     category = redirects.get((NAMESPACE_CATEGORY, category))
-                    if category is not None:
-                        if (NAMESPACE_CATEGORY, category) not in page_linked_pages:
-                            page_linked_pages.append((NAMESPACE_CATEGORY, category))
+                    if category is not None and (NAMESPACE_CATEGORY, category) not in page_linked_pages:
+                        page_linked_pages.append((NAMESPACE_CATEGORY, category))
 
                     break
             else:
                 article = normalize_title(wikilink_title)
                 article = redirects.get((NAMESPACE_ARTICLE, article))
-                if article is not None:
-                    if (NAMESPACE_ARTICLE, article) not in page_linked_pages:
-                        page_linked_pages.append((NAMESPACE_ARTICLE, article))
+                if article is not None and (NAMESPACE_ARTICLE, article) not in page_linked_pages:
+                    page_linked_pages.append((NAMESPACE_ARTICLE, article))
 
         for template_node in wikicode.ifilter_templates():
             # Remove the substitution marker from the template name
             # cf. https://en.wikipedia.org/wiki/Help:Template
             template = normalize_title(str(template_node.name).removeprefix("subst:"))
             template = redirects.get((NAMESPACE_TEMPLATE, template))
-            if template is not None:
-                if (NAMESPACE_TEMPLATE, template) not in page_linked_pages:
-                    page_linked_pages.append((NAMESPACE_TEMPLATE, template))
+            if template is not None and (NAMESPACE_TEMPLATE, template) not in page_linked_pages:
+                page_linked_pages.append((NAMESPACE_TEMPLATE, template))
 
         assert page_id not in linked_pages
         linked_pages[page_id] = page_linked_pages
@@ -250,6 +259,7 @@ def create_page_dataset(
     lang: str,
     linked_pages: dict[int, list[tuple[int, str]]],
     num_inlinks: dict[tuple[int, str], int],
+    all_titles: set[tuple[int, str]],
     inverse_redirects: dict[tuple[int, str], list[str]],
 ) -> int:
     num_examples = 0
@@ -258,6 +268,9 @@ def create_page_dataset(
 
     with gzip.open(output_file, "wt") as fo:
         for item in tqdm(generate_items_from_cirrussearch_files(cirrussearch_files, lang)):
+            if "redirect_target" in item:
+                continue
+
             page_id = item["page_id"]
             revision_id = item["version"]
             id_ = f"{lang}-{page_id}-{revision_id}"
@@ -274,6 +287,9 @@ def create_page_dataset(
             page_linked_templates = []
 
             for link_namespace, link_title in linked_pages[page_id]:
+                if (link_namespace, link_title) not in all_titles:
+                    continue
+
                 if link_namespace == NAMESPACE_ARTICLE:
                     page_linked_articles.append(link_title)
                 elif link_namespace == NAMESPACE_CATEGORY:
@@ -293,11 +309,11 @@ def create_page_dataset(
                 "title": title,
                 "wikidata_qid": wikidata_qid,
                 "wikitext": wikitext,
-                "linked_articles": page_linked_articles,
-                "categories": page_linked_categories,
-                "templates": page_linked_templates,
+                "linked_articles": sorted(page_linked_articles),
+                "categories": sorted(page_linked_categories),
+                "templates": sorted(page_linked_templates),
                 "num_inlinks": page_num_inlinks,
-                "redirects": page_redirects,
+                "redirects": sorted(page_redirects),
             }
             print(json.dumps(output_example, ensure_ascii=False), file=fo)
             num_examples += 1
@@ -321,8 +337,8 @@ def main():
     category_prefixes = fetch_category_prefixes(args.lang, args.user_agent)
     logger.debug("Category prefixes: {}", category_prefixes)
 
-    logger.info("Extracting redirects from Cirrussearch dump files")
-    redirect_candidates = extract_redirect_candidates(args.cirrussearch_files, args.lang)
+    logger.info("Extracting page titles and redirects from Cirrussearch dump files")
+    all_titles, redirect_candidates = extract_all_titles_and_redirect_candidates(args.cirrussearch_files, args.lang)
 
     logger.info("Normalizing redirects")
     redirects = normalize_redirects(redirect_candidates)
@@ -342,7 +358,7 @@ def main():
 
     logger.info("Creating page dataset")
     num_examples = create_page_dataset(
-        args.cirrussearch_files, args.output_file, args.lang, linked_pages, num_inlinks, inverse_redirects
+        args.cirrussearch_files, args.output_file, args.lang, linked_pages, num_inlinks, all_titles, inverse_redirects
     )
     logger.info("Finished creating page dataset of {} examples", num_examples)
 
